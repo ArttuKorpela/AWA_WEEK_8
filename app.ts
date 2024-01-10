@@ -13,6 +13,19 @@ if (!secret_key) {
     process.exit(1); 
 }
 //console.log(secret_key);
+import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
+import passport from 'passport';
+
+
+const passport_options = {
+    jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+    secretOrKey: process.env.SECRET
+}
+
+passport.use(new JwtStrategy(passport_options, (jwt_payload, done) => {
+    return done(null,{email: jwt_payload.email});
+}))
+
 
 
 const mongoDB: string = "mongodb://127.0.0.1:27017/testdb";
@@ -46,6 +59,14 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/hello", (req: Request, res: Response) => {
     res.send("Hello world!")
 })
+
+app.get('/api/private', passport.authenticate('jwt', { session: false }), (req, res) => {
+    if (req.user) {
+        res.status(200).json( req.user );
+    } else {
+        res.status(401).send('Unauthorized');
+    }
+});
 
 app.post("/api/user/register/", async (req: Request,res:Response) => {
     const email: string = req.body.email;
