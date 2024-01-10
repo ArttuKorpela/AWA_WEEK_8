@@ -3,6 +3,17 @@ import express, { Express, Request, Response } from "express";
 const Users = require('./Models/Users');
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+//import express_validator, { body, validationResult } from "express-validator";
+import dotenv from 'dotenv'; 
+import * as jwt from 'jsonwebtoken';
+dotenv.config();
+const secret_key = process.env.SECRET!;
+if (!secret_key) {
+    console.error("Fatal Error: SECRET is not set in .env file.");
+    process.exit(1); 
+}
+//console.log(secret_key);
+
 
 const mongoDB: string = "mongodb://127.0.0.1:27017/testdb";
 mongoose.connect(mongoDB);
@@ -57,9 +68,47 @@ app.post("/api/user/register/", async (req: Request,res:Response) => {
         console.error(error);
         res.status(500).send('Error processing request');
     }
-    
-    
+});
 
+app.post("/api/user/login/", async (req: Request,res:Response) => {
+    const email: string = req.body.email;
+    const password: string = req.body.password;
+
+    try {
+        const existing_user = await Users.findOne({email: email});
+        if (existing_user) {
+            bcrypt.compare(password, existing_user.password, (err, match) => {
+                if (err) {throw err}
+                if (match) {
+                    
+                    const jswToken = {
+                        id: existing_user._id,
+                        email: existing_user.email,
+                    };
+                    
+                    jwt.sign(jswToken, String(secret_key), {
+                        expiresIn: 120
+                    }, (err, token) => {
+                        if (err) {throw err}
+                        else {
+                            res.json({
+                                success: true,
+                                token: token
+                            });
+                        };
+                    });
+
+                } else {
+                    res.send("No match");
+                }
+            }) 
+        } else {
+            return res.send("No user with this email");
+        }
+    } catch(err) {
+        return res.status(403).send("Error in login");
+    }
+    
 })
 
 app.listen(port, () => {
