@@ -36,12 +36,6 @@ interface UserPayload {
     };
   };
 
-  interface todoPayload {
-    user: string;
-    items:string[];
-  };
-
-
 const mongoDB: string = "mongodb://127.0.0.1:27017/testdb";
 mongoose.connect(mongoDB);
 mongoose.Promise = global.Promise;
@@ -179,10 +173,10 @@ app.post("/api/todos/", passport.authenticate('jwt', { session: false }),
 
             let existingUser = await Todos.findOne({ user: userId });
             if (existingUser) {
-                existingUser.item.push(...newItems); 
+                existingUser.items.push(...newItems); 
                 await existingUser.save();
             } else {
-                const newUser = new Todos({ user: userId, item: newItems });
+                const newUser = new Todos({ user: userId, items: newItems });
                 await newUser.save();
             }
             res.status(200).send("Success");

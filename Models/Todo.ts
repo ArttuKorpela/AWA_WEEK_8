@@ -5,7 +5,7 @@ const todoSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Users',
   },
-  item: {
+  items: {
     type: [String],
   }
 });
