@@ -1,6 +1,7 @@
 import express, { Express, Request, Response } from "express";
 //import Users from "./Models/Users";
 const Users = require('./Models/Users');
+import Todos from "./Models/Todo";
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
@@ -23,9 +24,22 @@ const passport_options = {
 }
 
 passport.use(new JwtStrategy(passport_options, (jwt_payload, done) => {
-    return done(null,{email: jwt_payload.email});
+    return done(null,{data: jwt_payload});
 }))
 
+interface UserPayload {
+    data: {
+      id: string;
+      email: string;
+      iat: number;
+      exp: number;
+    };
+  };
+
+  interface todoPayload {
+    user: string;
+    items:string[];
+  };
 
 
 const mongoDB: string = "mongodb://127.0.0.1:27017/testdb";
@@ -61,8 +75,9 @@ app.get("/hello", (req: Request, res: Response) => {
 })
 
 app.get('/api/private', passport.authenticate('jwt', { session: false }), (req, res) => {
-    if (req.user) {
-        res.status(200).json( req.user );
+    const user = req.user as UserPayload;
+    if (user) {
+        res.status(200).json( {email: user.data.email});
     } else {
         res.status(401).send('Unauthorized');
     }
@@ -153,6 +168,28 @@ app.post("/api/user/login/", async (req: Request,res:Response) => {
     }
     
 })
+
+
+app.post("/api/todos/", passport.authenticate('jwt', { session: false }),
+    async (req: Request, res: Response) => {
+        try {
+            const user = req.user as UserPayload;
+            const userId = user.data.id;
+            const newItems: string[] = req.body.items;
+
+            let existingUser = await Todos.findOne({ user: userId });
+            if (existingUser) {
+                existingUser.item.push(...newItems); 
+                await existingUser.save();
+            } else {
+                const newUser = new Todos({ user: userId, item: newItems });
+                await newUser.save();
+            }
+            res.status(200).send("Success");
+        } catch (err) {
+            res.status(500).send('Error processing your request');
+        }
+});
 
 app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
