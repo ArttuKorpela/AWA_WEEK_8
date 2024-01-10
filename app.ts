@@ -105,7 +105,7 @@ app.post("/api/user/register/",
                     password: hashed_password
                 })
                 await newUser.save();
-                res.status(201).send('User created');
+                res.status(200).send('User created');
             }
         } catch (error) {
             console.error(error);
