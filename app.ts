@@ -3,7 +3,7 @@ import express, { Express, Request, Response } from "express";
 const Users = require('./Models/Users');
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-//import express_validator, { body, validationResult } from "express-validator";
+import { body, validationResult } from 'express-validator';
 import dotenv from 'dotenv'; 
 import * as jwt from 'jsonwebtoken';
 dotenv.config();
@@ -68,27 +68,49 @@ app.get('/api/private', passport.authenticate('jwt', { session: false }), (req, 
     }
 });
 
-app.post("/api/user/register/", async (req: Request,res:Response) => {
-    const email: string = req.body.email;
-    const password_plain: string = req.body.password;
 
-    try {
-        const existingUser = await Users.findOne({ email: email });
-        if (existingUser) {
-            return res.status(403).send("Email taken")
-        }else{
-            const hashed_password = await hashPassword(password_plain);
-            const newUser = new Users({
-                email: email,
-                password: hashed_password
-            })
-            await newUser.save();
-            res.status(201).send('User created');
+app.post("/api/user/register/",
+    body("email")
+        .isEmail()
+        .withMessage("Invalid email address"),
+    body('password')
+        .isLength({ min: 8 })
+        .withMessage('Password must be at least 8 characters long')
+        .matches(/[a-z]/)
+        .withMessage('Password must contain at least one lowercase letter')
+        .matches(/[A-Z]/)
+        .withMessage('Password must contain at least one uppercase letter')
+        .matches(/[0-9]/)
+        .withMessage('Password must contain at least one number')
+        .matches(/[~`!@#$%^&*()-_+={}[\]|\\:;"'<>,./?]/)
+        .withMessage('Password must contain at least one symbol (~`!@#$%^&*()-_+={}[]|\\;:"<>,./?)'),
+    
+    async (req: Request,res:Response) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
         }
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Error processing request');
-    }
+
+        const email: string = req.body.email;
+        const password_plain: string = req.body.password;
+
+        try {
+            const existingUser = await Users.findOne({ email: email });
+            if (existingUser) {
+                return res.status(403).send("Email taken")
+            }else{
+                const hashed_password = await hashPassword(password_plain);
+                const newUser = new Users({
+                    email: email,
+                    password: hashed_password
+                })
+                await newUser.save();
+                res.status(201).send('User created');
+            }
+        } catch (error) {
+            console.error(error);
+            res.status(500).send('Error processing request');
+        }
 });
 
 app.post("/api/user/login/", async (req: Request,res:Response) => {
